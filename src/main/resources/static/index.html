@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <title>記帳本 API 測試頁</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 使用 CDN 版 React 18，減少設定 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: #0f172a;
+        color: #e5e7eb;
+      }
+      .app {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px 16px 48px;
+      }
+      h1 {
+        font-size: 28px;
+        margin-bottom: 8px;
+      }
+      h2 {
+        font-size: 20px;
+        margin: 24px 0 12px;
+      }
+      h3 {
+        font-size: 16px;
+        margin: 16px 0 8px;
+      }
+      .subtitle {
+        color: #9ca3af;
+        margin-bottom: 24px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+      }
+      .card {
+        background: #020617;
+        border-radius: 12px;
+        padding: 16px 16px 18px;
+        border: 1px solid #1f2937;
+        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.6);
+      }
+      label {
+        font-size: 13px;
+        color: #9ca3af;
+        display: block;
+        margin-bottom: 4px;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 1px solid #374151;
+        background: #020617;
+        color: #e5e7eb;
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 1px #38bdf8;
+      }
+      button {
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: none;
+        background: linear-gradient(135deg, #38bdf8, #6366f1);
+        color: white;
+        font-size: 13px;
+        cursor: pointer;
+        margin-right: 6px;
+        margin-top: 4px;
+      }
+      button.secondary {
+        background: transparent;
+        border: 1px solid #4b5563;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+      }
+      .row > div {
+        flex: 1;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        border: 1px solid #4b5563;
+        color: #9ca3af;
+        margin-left: 4px;
+      }
+      .list {
+        max-height: 220px;
+        overflow: auto;
+        border-radius: 8px;
+        border: 1px solid #111827;
+        background: #020617;
+        padding: 6px 8px;
+        font-size: 13px;
+      }
+      .list-item {
+        padding: 4px 2px;
+        border-bottom: 1px solid #111827;
+      }
+      .list-item:last-child {
+        border-bottom: none;
+      }
+      .stat-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+      .stat-label {
+        color: #9ca3af;
+      }
+      .stat-value {
+        font-weight: 600;
+      }
+      .income {
+        color: #4ade80;
+      }
+      .expense {
+        color: #f97373;
+      }
+      .log {
+        font-size: 12px;
+        max-height: 180px;
+        overflow: auto;
+        background: #020617;
+        border-radius: 8px;
+        border: 1px solid #111827;
+        padding: 6px 8px;
+        white-space: pre-wrap;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        font-size: 11px;
+        border: 1px solid #374151;
+        color: #9ca3af;
+        margin-left: 4px;
+      }
+      @media (max-width: 600px) {
+        .app {
+          padding: 16px 12px 32px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- 使用 Babel 即時編譯 JSX，需要指定 presets -->
+    <script type="text/babel" data-presets="env,react">
+      const { useState } = React;
+
+      const api = {
+        async request(path, options = {}) {
+          const res = await fetch(path, {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            ...options,
+          });
+          const text = await res.text();
+          try {
+            const json = text ? JSON.parse(text) : null;
+            if (!res.ok) throw new Error(JSON.stringify(json) || res.statusText);
+            return json;
+          } catch (e) {
+            if (!res.ok) throw new Error(text || res.statusText);
+            return text;
+          }
+        },
+      };
+
+      function App() {
+        const [googleId, setGoogleId] = useState("test-user-1");
+        const [nickname, setNickname] = useState("測試用戶");
+        const [member, setMember] = useState(null);
+        const [family, setFamily] = useState(null);
+        const [accounts, setAccounts] = useState([]);
+        const [records, setRecords] = useState([]);
+        const [stats, setStats] = useState(null);
+        const [categoryStats, setCategoryStats] = useState([]);
+        const [familyStats, setFamilyStats] = useState([]);
+        const [familyName, setFamilyName] = useState("彭家記帳");
+        const [joinCode, setJoinCode] = useState("");
+        const [hostRequests, setHostRequests] = useState([]);
+        const [familyMembers, setFamilyMembers] = useState([]);
+        const [selectedMember, setSelectedMember] = useState(null);
+        const [selectedMemberAccounts, setSelectedMemberAccounts] = useState([]);
+        const [selectedMemberRecords, setSelectedMemberRecords] = useState([]);
+        const [selectedMemberStats, setSelectedMemberStats] = useState(null);
+        const [loading, setLoading] = useState(false);
+        const [log, setLog] = useState("");
+
+        const [newAccount, setNewAccount] = useState({
+          name: "現金",
+          balance: "",
+        });
+        const [newRecord, setNewRecord] = useState({
+          accountId: "",
+          type: "EXPENSE",
+          category: "食",
+          subCategory: "",
+          date: new Date().toISOString().slice(0, 10),
+          amount: "",
+          note: "",
+        });
+
+        function appendLog(msg) {
+          setLog((prev) => {
+            const time = new Date().toLocaleTimeString();
+            return `[${time}] ${msg}\n${prev}`;
+          });
+        }
+
+        async function handleTestLogin() {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          setLoading(true);
+          try {
+            const res = await api.request(
+              `/api/members/login?googleId=${encodeURIComponent(
+                googleId
+              )}&nickname=${encodeURIComponent(nickname || "")}`,
+              { method: "POST" }
+            );
+            setMember(res);
+            setFamily(res.family || null);
+            appendLog("登入成功：" + JSON.stringify(res));
+          } catch (e) {
+            console.error(e);
+            appendLog("登入失敗：" + e.message);
+            alert("登入失敗： " + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        async function loadAccounts() {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          setLoading(true);
+          try {
+            const res = await api.request(
+              `/api/accounts?googleId=${encodeURIComponent(googleId)}`
+            );
+            setAccounts(res);
+            appendLog("載入帳戶：" + JSON.stringify(res));
+          } catch (e) {
+            console.error(e);
+            appendLog("載入帳戶失敗：" + e.message);
+            alert("載入帳戶失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        async function createAccount() {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          if (!newAccount.name) {
+            alert("請輸入帳戶名稱");
+            return;
+          }
+          setLoading(true);
+          try {
+            const body = {
+              name: newAccount.name,
+              balance: newAccount.balance
+                ? Number(newAccount.balance)
+                : undefined,
+            };
+            const res = await api.request(
+              `/api/accounts?googleId=${encodeURIComponent(googleId)}`,
+              {
+                method: "POST",
+                body: JSON.stringify(body),
+              }
+            );
+            appendLog("建立帳戶成功：" + JSON.stringify(res));
+            await loadAccounts();
+          } catch (e) {
+            console.error(e);
+            appendLog("建立帳戶失敗：" + e.message);
+            alert("建立帳戶失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        async function loadRecords() {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          setLoading(true);
+          try {
+            const res = await api.request(
+              `/api/records?googleId=${encodeURIComponent(googleId)}`
+            );
+            setRecords(res);
+            appendLog("載入紀錄：" + JSON.stringify(res));
+          } catch (e) {
+            console.error(e);
+            appendLog("載入紀錄失敗：" + e.message);
+            alert("載入紀錄失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        async function createRecord() {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          if (!newRecord.accountId) {
+            alert("請選擇帳戶");
+            return;
+          }
+          if (!newRecord.amount) {
+            alert("請輸入金額");
+            return;
+          }
+          setLoading(true);
+          try {
+            const body = {
+              type: newRecord.type,
+              category: newRecord.category,
+              subCategory: newRecord.subCategory || null,
+              date: newRecord.date,
+              amount: Number(newRecord.amount),
+              note: newRecord.note || null,
+            };
+            const res = await api.request(
+              `/api/records?googleId=${encodeURIComponent(
+                googleId
+              )}&accountId=${encodeURIComponent(newRecord.accountId)}`,
+              {
+                method: "POST",
+                body: JSON.stringify(body),
+              }
+            );
+            appendLog("新增紀錄成功：" + JSON.stringify(res));
+            await Promise.all([loadRecords(), loadAccounts()]);
+          } catch (e) {
+            console.error(e);
+            appendLog("新增紀錄失敗：" + e.message);
+            alert("新增紀錄失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        async function loadStats() {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          setLoading(true);
+          try {
+            const res = await api.request(
+              `/api/records/stats?googleId=${encodeURIComponent(googleId)}`
+            );
+            setStats(res);
+            appendLog("載入個人 Stats：" + JSON.stringify(res));
+          } catch (e) {
+            console.error(e);
+            appendLog("載入個人 Stats 失敗：" + e.message);
+            alert("載入個人 Stats 失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        async function loadCategoryStats() {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          setLoading(true);
+          try {
+            const res = await api.request(
+              `/api/records/stats/category?googleId=${encodeURIComponent(
+                googleId
+              )}&type=EXPENSE`
+            );
+            setCategoryStats(res);
+            appendLog("載入個人分類統計：" + JSON.stringify(res));
+          } catch (e) {
+            console.error(e);
+            appendLog("載入個人分類統計失敗：" + e.message);
+            alert("載入個人分類統計失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        async function loadFamilyCategoryStats() {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          setLoading(true);
+          try {
+            const res = await api.request(
+              `/api/family/stats/category?googleId=${encodeURIComponent(
+                googleId
+              )}&type=EXPENSE`
+            );
+            setFamilyStats(res);
+            appendLog("載入家庭分類統計：" + JSON.stringify(res));
+          } catch (e) {
+            console.error(e);
+            appendLog("載入家庭分類統計失敗：" + e.message);
+            alert("載入家庭分類統計失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        // 建立家庭
+        async function createFamilyApi() {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          if (!familyName) {
+            alert("請輸入家庭名稱");
+            return;
+          }
+          setLoading(true);
+          try {
+            const res = await api.request(
+              `/api/family/create?googleId=${encodeURIComponent(
+                googleId
+              )}&name=${encodeURIComponent(familyName)}`,
+              { method: "POST" }
+            );
+            setFamily(res);
+            appendLog("建立家庭成功：" + JSON.stringify(res));
+          } catch (e) {
+            console.error(e);
+            appendLog("建立家庭失敗：" + e.message);
+            alert("建立家庭失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        // 申請加入家庭
+        async function applyJoinFamily() {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          if (!joinCode) {
+            alert("請輸入邀請碼");
+            return;
+          }
+          setLoading(true);
+          try {
+            const res = await api.request(
+              `/api/family/join?googleId=${encodeURIComponent(
+                googleId
+              )}&code=${encodeURIComponent(joinCode)}`,
+              { method: "POST" }
+            );
+            appendLog("已送出加入申請：" + JSON.stringify(res));
+            alert("已送出加入申請，請等待家庭擁有者審核");
+          } catch (e) {
+            console.error(e);
+            appendLog("送出加入申請失敗：" + e.message);
+            alert("送出加入申請失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        // Host 讀取待審核申請
+        async function loadJoinRequests() {
+          if (!googleId) {
+            alert("請先輸入 googleId（Host 的 googleId）");
+            return;
+          }
+          setLoading(true);
+          try {
+            const res = await api.request(
+              `/api/family/join-requests?hostGoogleId=${encodeURIComponent(
+                googleId
+              )}`
+            );
+            setHostRequests(res);
+            appendLog("載入家庭加入申請：" + JSON.stringify(res));
+          } catch (e) {
+            console.error(e);
+            appendLog("載入家庭加入申請失敗：" + e.message);
+            alert("載入家庭加入申請失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        // Host 審核申請
+        async function reviewJoinRequestApi(requestId, approve) {
+          if (!googleId) {
+            alert("請先輸入 googleId（Host 的 googleId）");
+            return;
+          }
+          setLoading(true);
+          try {
+            const res = await api.request(
+              `/api/family/join/review?hostGoogleId=${encodeURIComponent(
+                googleId
+              )}&requestId=${requestId}&approve=${approve}`,
+              { method: "POST" }
+            );
+            appendLog("審核結果：" + res);
+            await loadJoinRequests();
+          } catch (e) {
+            console.error(e);
+            appendLog("審核加入申請失敗：" + e.message);
+            alert("審核加入申請失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        // 載入家庭成員清單
+        async function loadFamilyMembers() {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          setLoading(true);
+          try {
+            const res = await api.request(
+              `/api/family/members?googleId=${encodeURIComponent(googleId)}`
+            );
+            setFamilyMembers(res);
+            appendLog("載入家庭成員：" + JSON.stringify(res));
+          } catch (e) {
+            console.error(e);
+            appendLog("載入家庭成員失敗：" + e.message);
+            alert("載入家庭成員失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        async function loadSelectedMemberData(type) {
+          if (!googleId) {
+            alert("請先輸入 googleId");
+            return;
+          }
+          if (!selectedMember) {
+            alert("請先選擇一位家庭成員");
+            return;
+          }
+          setLoading(true);
+          try {
+            if (type === "accounts") {
+              const res = await api.request(
+                `/api/family/member/accounts?googleId=${encodeURIComponent(
+                  googleId
+                )}&targetGoogleId=${encodeURIComponent(selectedMember.googleId)}`
+              );
+              setSelectedMemberAccounts(res);
+              appendLog("載入成員帳戶：" + JSON.stringify(res));
+            } else if (type === "records") {
+              const res = await api.request(
+                `/api/family/member/records?googleId=${encodeURIComponent(
+                  googleId
+                )}&targetGoogleId=${encodeURIComponent(selectedMember.googleId)}`
+              );
+              setSelectedMemberRecords(res);
+              appendLog("載入成員紀錄：" + JSON.stringify(res));
+            } else if (type === "stats") {
+              const res = await api.request(
+                `/api/family/member/stats?googleId=${encodeURIComponent(
+                  googleId
+                )}&targetGoogleId=${encodeURIComponent(selectedMember.googleId)}`
+              );
+              setSelectedMemberStats(res);
+              appendLog("載入成員統計：" + JSON.stringify(res));
+            }
+          } catch (e) {
+            console.error(e);
+            appendLog("載入家庭成員資料失敗：" + e.message);
+            alert("載入家庭成員資料失敗：" + e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        return (
+          <div className="app">
+            <h1>
+              記帳本 API 測試頁
+              <span className="tag">React (CDN)</span>
+            </h1>
+            <div className="subtitle">
+              在這個頁面可以直接測試目前後端所有主要功能，同時也可以看看簡單的 React
+              用法。
+            </div>
+
+            <div className="card">
+              <h2>1. 使用者資訊</h2>
+              <div className="row">
+                <div>
+                  <label>Google ID</label>
+                  <input
+                    value={googleId}
+                    onChange={(e) => setGoogleId(e.target.value)}
+                    placeholder="輸入 googleId（後端以此當主鍵）"
+                  />
+                </div>
+                <div>
+                  <label>暱稱（測試登入用）</label>
+                  <input
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    placeholder="可留空，後端會帶預設值"
+                  />
+                </div>
+              </div>
+              <button onClick={handleTestLogin} disabled={loading}>
+                測試登入 / 註冊
+              </button>
+              {member && (
+                <div style={{ marginTop: 8, fontSize: 13 }}>
+                  <span className="stat-label">目前登入會員：</span>
+                  <span className="stat-value">{member.nickname}</span>
+                  <span className="badge">
+                    {member.email}｜familyId:{" "}
+                    {member.family ? member.family.id : "無"}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="card" style={{ marginTop: 16 }}>
+              <h2>1.5 家庭功能</h2>
+              <h3>建立家庭（成為 Host）</h3>
+              <div className="row">
+                <div>
+                  <label>家庭名稱</label>
+                  <input
+                    value={familyName}
+                    onChange={(e) => setFamilyName(e.target.value)}
+                    placeholder="例如：彭家記帳"
+                  />
+                </div>
+              </div>
+              <button onClick={createFamilyApi} disabled={loading}>
+                建立家庭
+              </button>
+              {family && (
+                <div style={{ marginTop: 8, fontSize: 13 }}>
+                  <div>
+                    <span className="stat-label">目前家庭：</span>
+                    <span className="stat-value">{family.name}</span>
+                  </div>
+                  <div style={{ marginTop: 2 }}>
+                    <span className="stat-label">邀請碼：</span>
+                    <span className="stat-value">{family.inviteCode}</span>
+                  </div>
+                </div>
+              )}
+
+              <h3 style={{ marginTop: 16 }}>申請加入家庭</h3>
+              <div className="row">
+                <div>
+                  <label>家庭邀請碼</label>
+                  <input
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    placeholder="輸入 6 碼邀請碼"
+                  />
+                </div>
+              </div>
+              <button onClick={applyJoinFamily} disabled={loading}>
+                送出加入申請
+              </button>
+
+              <h3 style={{ marginTop: 16 }}>Host 審核加入申請</h3>
+              <button className="secondary" onClick={loadJoinRequests} disabled={loading}>
+                重新載入加入申請列表
+              </button>
+              <div className="list" style={{ marginTop: 8 }}>
+                {hostRequests.length === 0 && (
+                  <div className="list-item">目前沒有待審核的申請</div>
+                )}
+                {hostRequests.map((r) => (
+                  <div key={r.id} className="list-item">
+                    <div style={{ fontSize: 13 }}>
+                      申請人：
+                      <span className="stat-value">
+                        {r.applicant ? r.applicant.nickname : "(未知)"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                      申請時間：{r.createdAt}
+                    </div>
+                    <div style={{ marginTop: 4 }}>
+                      <button
+                        onClick={() => reviewJoinRequestApi(r.id, true)}
+                        disabled={loading}
+                      >
+                        同意
+                      </button>
+                      <button
+                        className="secondary"
+                        onClick={() => reviewJoinRequestApi(r.id, false)}
+                        disabled={loading}
+                      >
+                        拒絕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid" style={{ marginTop: 16 }}>
+              <div className="card">
+                <h2>2. 帳戶 (Accounts)</h2>
+                <div className="row">
+                  <div>
+                    <label>帳戶名稱</label>
+                    <input
+                      value={newAccount.name}
+                      onChange={(e) =>
+                        setNewAccount({
+                          ...newAccount,
+                          name: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label>初始餘額（可省略）</label>
+                    <input
+                      type="number"
+                      value={newAccount.balance}
+                      onChange={(e) =>
+                        setNewAccount({
+                          ...newAccount,
+                          balance: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <button onClick={createAccount} disabled={loading}>
+                  新增帳戶
+                </button>
+                <button className="secondary" onClick={loadAccounts} disabled={loading}>
+                  重新載入帳戶列表
+                </button>
+                <h3>帳戶列表</h3>
+                <div className="list">
+                  {accounts.length === 0 && (
+                    <div className="list-item">尚無帳戶</div>
+                  )}
+                  {accounts.map((a) => (
+                    <div key={a.id} className="list-item">
+                      <div style={{ fontWeight: 500 }}>{a.name}</div>
+                      <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                        ID: {a.id} ｜ 餘額:{" "}
+                        <span className="stat-value">{a.balance}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card">
+                <h2>2.5 家庭成員與資料查看</h2>
+                <button className="secondary" onClick={loadFamilyMembers} disabled={loading}>
+                  載入家庭成員
+                </button>
+                <div className="list" style={{ marginTop: 8, maxHeight: 160 }}>
+                  {familyMembers.length === 0 && (
+                    <div className="list-item">尚無家庭成員或尚未加入家庭</div>
+                  )}
+                  {familyMembers.map((m) => (
+                    <div
+                      key={m.googleId}
+                      className="list-item"
+                      style={{
+                        cursor: "pointer",
+                        backgroundColor:
+                          selectedMember && selectedMember.googleId === m.googleId
+                            ? "#020617"
+                            : "transparent",
+                      }}
+                      onClick={() => {
+                        setSelectedMember(m);
+                        setSelectedMemberAccounts([]);
+                        setSelectedMemberRecords([]);
+                        setSelectedMemberStats(null);
+                      }}
+                    >
+                      <div style={{ fontSize: 13 }}>
+                        <span className="stat-value">{m.nickname}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "#6b7280" }}>
+                        googleId: {m.googleId}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {selectedMember && (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 13, marginBottom: 6 }}>
+                      目前選擇成員：
+                      <span className="stat-value">{selectedMember.nickname}</span>
+                    </div>
+                    <button
+                      onClick={() => loadSelectedMemberData("accounts")}
+                      disabled={loading}
+                    >
+                      看此成員帳戶
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => loadSelectedMemberData("records")}
+                      disabled={loading}
+                    >
+                      看此成員紀錄
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => loadSelectedMemberData("stats")}
+                      disabled={loading}
+                    >
+                      看此成員統計
+                    </button>
+
+                    <h3 style={{ marginTop: 12 }}>成員帳戶</h3>
+                    <div className="list">
+                      {selectedMemberAccounts.length === 0 && (
+                        <div className="list-item">尚無帳戶資料</div>
+                      )}
+                      {selectedMemberAccounts.map((a) => (
+                        <div key={a.id} className="list-item">
+                          <div style={{ fontWeight: 500 }}>{a.name}</div>
+                          <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                            ID: {a.id} ｜ 餘額:{" "}
+                            <span className="stat-value">{a.balance}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <h3 style={{ marginTop: 12 }}>成員紀錄</h3>
+                    <div className="list">
+                      {selectedMemberRecords.length === 0 && (
+                        <div className="list-item">尚無紀錄</div>
+                      )}
+                      {selectedMemberRecords.map((r) => (
+                        <div key={r.id} className="list-item">
+                          <div
+                            style={{ display: "flex", justifyContent: "space-between" }}
+                          >
+                            <span>
+                              <span
+                                className={
+                                  r.type === "INCOME"
+                                    ? "income stat-value"
+                                    : "expense stat-value"
+                                }
+                              >
+                                {r.type === "INCOME" ? "+" : "-"}
+                                {r.amount}
+                              </span>{" "}
+                              <span style={{ fontSize: 12, color: "#9ca3af" }}>
+                                ｜ {r.category}
+                                {r.subCategory ? " / " + r.subCategory : ""}
+                              </span>
+                            </span>
+                            <span style={{ fontSize: 12, color: "#9ca3af" }}>
+                              {r.date}｜帳戶ID: {r.account ? r.account.id : "?"}
+                            </span>
+                          </div>
+                          {r.note && (
+                            <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                              備註：{r.note}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <h3 style={{ marginTop: 12 }}>成員統計</h3>
+                    <div className="list">
+                      {!selectedMemberStats && (
+                        <div className="list-item">尚無統計資料</div>
+                      )}
+                      {selectedMemberStats && (
+                        <div className="list-item">
+                          <div className="stat-row">
+                            <span className="stat-label">總收入</span>
+                            <span className="stat-value income">
+                              {selectedMemberStats.totalIncome}
+                            </span>
+                          </div>
+                          <div className="stat-row">
+                            <span className="stat-label">總支出</span>
+                            <span className="stat-value expense">
+                              {selectedMemberStats.totalExpense}
+                            </span>
+                          </div>
+                          <div className="stat-row">
+                            <span className="stat-label">結餘</span>
+                            <span className="stat-value">
+                              {selectedMemberStats.balance}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="card">
+                <h2>3. 記帳 (Records)</h2>
+                <div>
+                  <label>帳戶</label>
+                  <select
+                    value={newRecord.accountId}
+                    onChange={(e) =>
+                      setNewRecord({
+                        ...newRecord,
+                        accountId: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">請先建立帳戶再選擇</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} (ID: {a.id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="row">
+                  <div>
+                    <label>類型</label>
+                    <select
+                      value={newRecord.type}
+                      onChange={(e) =>
+                        setNewRecord({
+                          ...newRecord,
+                          type: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="EXPENSE">支出</option>
+                      <option value="INCOME">收入</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>分類</label>
+                    <input
+                      value={newRecord.category}
+                      onChange={(e) =>
+                        setNewRecord({
+                          ...newRecord,
+                          category: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="row">
+                  <div>
+                    <label>子分類（可省略）</label>
+                    <input
+                      value={newRecord.subCategory}
+                      onChange={(e) =>
+                        setNewRecord({
+                          ...newRecord,
+                          subCategory: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label>日期</label>
+                    <input
+                      type="date"
+                      value={newRecord.date}
+                      onChange={(e) =>
+                        setNewRecord({
+                          ...newRecord,
+                          date: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="row">
+                  <div>
+                    <label>金額</label>
+                    <input
+                      type="number"
+                      value={newRecord.amount}
+                      onChange={(e) =>
+                        setNewRecord({
+                          ...newRecord,
+                          amount: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label>備註（可省略）</label>
+                    <input
+                      value={newRecord.note}
+                      onChange={(e) =>
+                        setNewRecord({
+                          ...newRecord,
+                          note: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+                <button onClick={createRecord} disabled={loading}>
+                  新增紀錄
+                </button>
+                <button className="secondary" onClick={loadRecords} disabled={loading}>
+                  重新載入紀錄
+                </button>
+
+                <h3>紀錄列表</h3>
+                <div className="list">
+                  {records.length === 0 && (
+                    <div className="list-item">尚無紀錄</div>
+                  )}
+                  {records.map((r) => (
+                    <div key={r.id} className="list-item">
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span>
+                          <span
+                            className={
+                              r.type === "INCOME" ? "income stat-value" : "expense stat-value"
+                            }
+                          >
+                            {r.type === "INCOME" ? "+" : "-"}
+                            {r.amount}
+                          </span>{" "}
+                          <span style={{ fontSize: 12, color: "#9ca3af" }}>
+                            ｜ {r.category}
+                            {r.subCategory ? " / " + r.subCategory : ""}
+                          </span>
+                        </span>
+                        <span style={{ fontSize: 12, color: "#9ca3af" }}>
+                          {r.date}｜帳戶ID: {r.account ? r.account.id : "?"}
+                        </span>
+                      </div>
+                      {r.note && (
+                        <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                          備註：{r.note}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid" style={{ marginTop: 16 }}>
+              <div className="card">
+                <h2>4. 個人統計</h2>
+                <button onClick={loadStats} disabled={loading}>
+                  取得個人收支總覽
+                </button>
+                <button
+                  className="secondary"
+                  onClick={loadCategoryStats}
+                  disabled={loading}
+                >
+                  取得個人分類統計（預設支出）
+                </button>
+                {stats && (
+                  <div style={{ marginTop: 12 }}>
+                    <div className="stat-row">
+                      <span className="stat-label">總收入</span>
+                      <span className="stat-value income">{stats.totalIncome}</span>
+                    </div>
+                    <div className="stat-row">
+                      <span className="stat-label">總支出</span>
+                      <span className="stat-value expense">
+                        {stats.totalExpense}
+                      </span>
+                    </div>
+                    <div className="stat-row">
+                      <span className="stat-label">結餘</span>
+                      <span className="stat-value">{stats.balance}</span>
+                    </div>
+                  </div>
+                )}
+                <h3>個人分類統計（支出）</h3>
+                <div className="list">
+                  {categoryStats.length === 0 && (
+                    <div className="list-item">尚無資料</div>
+                  )}
+                  {categoryStats.map((c, idx) => (
+                    <div key={idx} className="list-item">
+                      <span>{c.category}</span>
+                      <span style={{ float: "right" }}>{c.totalAmount}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card">
+                <h2>
+                  5. 家庭分類統計
+                  <span className="tag">需要先加入家庭</span>
+                </h2>
+                <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 8 }}>
+                  這裡只示範讀取「家庭分類統計」，建立/加入家庭可用你之前的 API
+                  (Postman 或未來前端再補 UI)。
+                </p>
+                <button onClick={loadFamilyCategoryStats} disabled={loading}>
+                  取得家庭分類統計（支出）
+                </button>
+                <h3>家庭分類統計（支出）</h3>
+                <div className="list">
+                  {familyStats.length === 0 && (
+                    <div className="list-item">
+                      尚無資料，請確認你已加入家庭，且有家庭成員的記帳紀錄
+                    </div>
+                  )}
+                  {familyStats.map((c, idx) => (
+                    <div key={idx} className="list-item">
+                      <span>{c.category}</span>
+                      <span style={{ float: "right" }}>{c.totalAmount}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card">
+                <h2>6. 訊息 Log</h2>
+                <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 4 }}>
+                  這裡會顯示每次呼叫 API 的結果，方便 debug。
+                </p>
+                <div className="log">{log || "尚無訊息"}</div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
+

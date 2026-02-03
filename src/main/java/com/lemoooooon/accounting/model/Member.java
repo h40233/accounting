@@ -3,12 +3,15 @@ package com.lemoooooon.accounting.model;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -43,4 +46,13 @@ public class Member {
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)
     @JsonIgnoreProperties("member") // 避免迴圈
     private List<Account> accounts;
+
+    @ManyToOne
+    @JoinColumn(name = "family_id")
+    @JsonBackReference // 防止 JSON 無限迴圈
+    private Family family;
+    // 隱私設定：是否對家人公開統計數據 (預設 false)
+    private boolean shareStats = false;
+    // 隱私設定：是否對家人公開帳戶列表 (預設 false)
+    private boolean shareAccounts = false;
 }

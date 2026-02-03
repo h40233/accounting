@@ -1,5 +1,6 @@
 package com.lemoooooon.accounting.service;
 
+import com.lemoooooon.accounting.dto.CategoryStatsDto;
 import com.lemoooooon.accounting.dto.StatsDto;
 import com.lemoooooon.accounting.model.Account;
 import com.lemoooooon.accounting.model.Record;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -168,5 +170,26 @@ public class RecordService {
 
         BigDecimal balance = totalIncome.subtract(totalExpense);
         return new StatsDto(totalIncome, totalExpense, balance);
+    }
+
+    /**
+     * 取得分類統計 (支援時間範圍 + 收支類型)
+     */
+    public List<CategoryStatsDto> getCategoryStats(
+            String googleId, 
+            LocalDate startDate, 
+            LocalDate endDate, 
+            Record.RecordType type // 👈 新增參數
+    ) {
+        // 1. 日期防呆 (跟之前一樣)
+        if (startDate == null) startDate = LocalDate.now().withDayOfMonth(1);
+        if (endDate == null) endDate = LocalDate.now();
+        
+        // 2. 類型防呆 (如果前端沒傳，預設查支出，避免壞掉)
+        if (type == null) {
+            type = Record.RecordType.EXPENSE;
+        }
+
+        return recordRepository.findCategoryStatsByDateRange(googleId, startDate, endDate, type);
     }
 }

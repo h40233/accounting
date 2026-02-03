@@ -1,5 +1,6 @@
 package com.lemoooooon.accounting.controller;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,11 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.lemoooooon.accounting.dto.CategoryStatsDto;
 import com.lemoooooon.accounting.dto.StatsDto;
 import com.lemoooooon.accounting.model.Record;
+import com.lemoooooon.accounting.repository.RecordRepository;
 import com.lemoooooon.accounting.service.RecordService;
 
 import lombok.RequiredArgsConstructor;
-
-import com.lemoooooon.accounting.repository.RecordRepository;
 
 @RestController
 @RequiredArgsConstructor
@@ -82,7 +82,12 @@ public class RecordController {
     }
 
     @GetMapping("/stats/category")
-    public List<CategoryStatsDto> getCategoryStats(@RequestParam String googleId) {
-        return recordRepository.findCategoryStats(googleId);
+    public List<CategoryStatsDto> getCategoryStats(
+            @RequestParam String googleId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) Record.RecordType type // 👈 Spring 會自動把字串轉 Enum
+    ) {
+        return recordService.getCategoryStats(googleId, startDate, endDate, type);
     }
 }
