@@ -12,53 +12,45 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap; // ✨ Added
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 public class RecordService {
+    // ... (前段代碼保持不變) ...
 
     @Autowired
     private RecordRepository recordRepository;
 
     @Autowired
-    private AccountRepository accountRepository; // 新增：我們需要找帳戶
+    private AccountRepository accountRepository;
 
-    /**
-     * 新增記帳 (同時更新帳戶餘額)
-     * 注意：現在需要傳入 accountId
-     */
+    // ... (中間的方法如 createRecord, deleteRecord 等保持不變，略過以節省 tokens) ...
+
     @Transactional
     public Record createRecord(String googleId, Long accountId, Record record) {
-        // 1. 找出帳戶
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("找不到此帳戶"));
-
-        // 2. 安全檢查：確認這個帳戶是屬於這個人的
         if (!account.getMember().getGoogleId().equals(googleId)) {
             throw new RuntimeException("你沒有權限使用此帳戶");
         }
-
-        // 3. 設定關聯
         record.setAccount(account);
-        
-        // 4. ✨ 自動計算餘額 ✨
         if (record.getType() == Record.RecordType.INCOME) {
-            // 收入：帳戶錢變多
             account.setBalance(account.getBalance().add(record.getAmount()));
         } else {
-            // 支出：帳戶錢變少
             account.setBalance(account.getBalance().subtract(record.getAmount()));
         }
-        
-        // 5. 儲存帳戶更新 (因為有 @Transactional，這行其實可以省，但寫著比較保險)
         accountRepository.save(account);
-
-        // 6. 儲存紀錄
         return recordRepository.save(record);
     }
 
     public List<Record> getRecordsByMember(String googleId) {
-        // 使用修復後的 Repository 方法
         return recordRepository.findByAccountMemberGoogleId(googleId);
     }
 
@@ -70,52 +62,31 @@ public class RecordService {
         if (!record.getAccount().getMember().getGoogleId().equals(googleId)) {
             throw new RuntimeException("無權刪除");
         }
-        
-        // ✨ 刪除時，要把餘額「還原」 ✨
         Account account = record.getAccount();
         if (record.getType() == Record.RecordType.INCOME) {
-            // 原本是收入，刪掉後餘額要扣掉
             account.setBalance(account.getBalance().subtract(record.getAmount()));
         } else {
-            // 原本是支出，刪掉後餘額要加回來
             account.setBalance(account.getBalance().add(record.getAmount()));
         }
         accountRepository.save(account);
-
         recordRepository.delete(record);
     }
 
-    /**
-     * 修改記帳紀錄 (包含餘額連動修正)
-     * 支援：改金額、改分類、改帳戶、改收支類型
-     */
-    @Transactional // 務必要加！保證全部步驟一起成功或一起失敗
+    @Transactional
     public Record updateRecord(Long id, String googleId, Record newRecordDto) {
-        // 1. 找出舊的紀錄 (資料庫裡的現狀)
         Record oldRecord = recordRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("找不到此紀錄"));
-
-        // 2. 檢查權限
         if (!oldRecord.getAccount().getMember().getGoogleId().equals(googleId)) {
             throw new RuntimeException("無權修改");
         }
-
-        // ==========================================
-        // Step 1: 【還原】舊紀錄的影響 (Undo)
-        // ==========================================
         Account oldAccount = oldRecord.getAccount();
         if (oldRecord.getType() == Record.RecordType.INCOME) {
-            // 舊的是收入，現在要撤銷 -> 把錢扣回去
             oldAccount.setBalance(oldAccount.getBalance().subtract(oldRecord.getAmount()));
         } else {
-            // 舊的是支出，現在要撤銷 -> 把錢加回來
             oldAccount.setBalance(oldAccount.getBalance().add(oldRecord.getAmount()));
         }
-        accountRepository.save(oldAccount); // 暫存舊帳戶狀態
+        accountRepository.save(oldAccount);
 
-        // ==========================================
-        // Step 2: 【更新】資料欄位
-        // ==========================================
         oldRecord.setAmount(newRecordDto.getAmount());
         oldRecord.setCategory(newRecordDto.getCategory());
         oldRecord.setSubCategory(newRecordDto.getSubCategory());
@@ -123,73 +94,95 @@ public class RecordService {
         oldRecord.setNote(newRecordDto.getNote());
         oldRecord.setType(newRecordDto.getType());
 
-        // 檢查是否要【換帳戶】?
-        // 如果前端傳來的資料裡有帶 account 且 ID 不一樣，代表要換帳戶
         if (newRecordDto.getAccount() != null && 
             newRecordDto.getAccount().getId() != null &&
             !newRecordDto.getAccount().getId().equals(oldAccount.getId())) {
             
-            // 找出新帳戶
             Account newAccount = accountRepository.findById(newRecordDto.getAccount().getId())
                     .orElseThrow(() -> new RuntimeException("找不到新指定的帳戶"));
-            
-            // 權限檢查 (確認新帳戶也是這個人的)
             if (!newAccount.getMember().getGoogleId().equals(googleId)) {
                 throw new RuntimeException("無權使用該帳戶");
             }
-            
-            // 設定換成新帳戶
             oldRecord.setAccount(newAccount);
         }
 
-        // ==========================================
-        // Step 3: 【套用】新紀錄的影響 (Redo)
-        // ==========================================
-        // 注意：這裡要用 oldRecord.getAccount()，因為上面可能已經換過帳戶了
         Account currentAccount = oldRecord.getAccount();
-        
         if (oldRecord.getType() == Record.RecordType.INCOME) {
-            // 新的是收入 -> 加錢
             currentAccount.setBalance(currentAccount.getBalance().add(oldRecord.getAmount()));
         } else {
-            // 新的是支出 -> 扣錢
             currentAccount.setBalance(currentAccount.getBalance().subtract(oldRecord.getAmount()));
         }
         accountRepository.save(currentAccount);
-
-        // 4. 存檔並回傳
         return recordRepository.save(oldRecord);
     }
     
     public StatsDto getStats(String googleId) {
         BigDecimal totalIncome = recordRepository.findTotalIncome(googleId);
         if (totalIncome == null) totalIncome = BigDecimal.ZERO;
-
         BigDecimal totalExpense = recordRepository.findTotalExpense(googleId);
         if (totalExpense == null) totalExpense = BigDecimal.ZERO;
-
         BigDecimal balance = totalIncome.subtract(totalExpense);
         return new StatsDto(totalIncome, totalExpense, balance);
     }
 
-    /**
-     * 取得分類統計 (支援時間範圍 + 收支類型)
-     */
-    public List<CategoryStatsDto> getCategoryStats(
-            String googleId, 
-            LocalDate startDate, 
-            LocalDate endDate, 
-            Record.RecordType type // 👈 新增參數
-    ) {
-        // 1. 日期防呆 (跟之前一樣)
+    public List<CategoryStatsDto> getCategoryStats(String googleId, LocalDate startDate, LocalDate endDate, Record.RecordType type) {
         if (startDate == null) startDate = LocalDate.now().withDayOfMonth(1);
         if (endDate == null) endDate = LocalDate.now();
-        
-        // 2. 類型防呆 (如果前端沒傳，預設查支出，避免壞掉)
-        if (type == null) {
-            type = Record.RecordType.EXPENSE;
-        }
-
+        if (type == null) type = Record.RecordType.EXPENSE;
         return recordRepository.findCategoryStatsByDateRange(googleId, startDate, endDate, type);
+    }
+
+    /**
+     * 取得分類選單 (預設 + 使用者歷史紀錄)
+     * 使用 LinkedHashMap 確保順序
+     */
+    public Map<String, Map<String, Set<String>>> getCategoryOptions(String googleId) {
+        // 1. 初始化預設結構 (使用 LinkedHashMap)
+        Map<String, Map<String, Set<String>>> options = new LinkedHashMap<>();
+        options.put("EXPENSE", new LinkedHashMap<>());
+        options.put("INCOME", new LinkedHashMap<>());
+
+        // --- 預設支出 (依照指定順序) ---
+        addDefault(options, "EXPENSE", "食", "早餐", "午餐", "晚餐", "飲料", "零食", "消夜");
+        addDefault(options, "EXPENSE", "衣", "衣服", "褲子", "鞋子", "配件", "衛生紙", "洗髮精", "日常用品");
+        addDefault(options, "EXPENSE", "住", "房租", "水費", "電費", "瓦斯費", "網路費", "維修");
+        addDefault(options, "EXPENSE", "行", "捷運", "公車", "加油", "停車費", "計程車", "保養");
+        addDefault(options, "EXPENSE", "育", "書籍", "課程", "文具", "補習");
+        addDefault(options, "EXPENSE", "樂", "電影", "遊戲", "旅遊", "聚餐", "訂閱服務");
+        addDefault(options, "EXPENSE", "金融", "轉帳手續費", "利息支出", "保險");
+        addDefault(options, "EXPENSE", "醫療", "掛號費", "藥品", "住院", "健檢"); // ✨ 新增主分類，位於金融與其他之間
+        addDefault(options, "EXPENSE", "其他", "雜支", "捐款"); // ✨ 移除這裡的「醫療」
+
+        // --- 預設收入 ---
+        addDefault(options, "INCOME", "工作", "薪水", "獎金", "加班費");
+        addDefault(options, "INCOME", "副業", "外包", "兼職", "網拍");
+        addDefault(options, "INCOME", "金融投資", "股息", "價差獲利", "銀行利息");
+        addDefault(options, "INCOME", "其他", "中獎", "紅包", "退稅");
+
+        // 2. 讀取使用者歷史紀錄
+        List<Record> history = getRecordsByMember(googleId);
+        for (Record r : history) {
+            String type = r.getType().name(); 
+            String cat = r.getCategory();
+            String sub = r.getSubCategory();
+
+            if (cat != null && !cat.isEmpty()) {
+                // computeIfAbsent 若 key 已存在 (預設值)，不會改變其順序；若不存在 (自訂值)，則會加在最後面
+                options.get(type).computeIfAbsent(cat, k -> new HashSet<>());
+                
+                if (sub != null && !sub.isEmpty()) {
+                    options.get(type).get(cat).add(sub);
+                }
+            }
+        }
+        
+        return options;
+    }
+
+    private void addDefault(Map<String, Map<String, Set<String>>> options, String type, String category, String... subs) {
+        // 這裡依然可以用 HashSet 存小分類，因為小分類順序通常沒那麼嚴格，且 Set 可自動去重
+        // 如果連小分類都要排序，這裡也要改成 LinkedHashSet
+        Set<String> subSet = options.get(type).computeIfAbsent(category, k -> new java.util.LinkedHashSet<>()); 
+        subSet.addAll(Arrays.asList(subs));
     }
 }

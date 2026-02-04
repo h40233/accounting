@@ -90,4 +90,13 @@ public class RecordController {
     ) {
         return recordService.getCategoryStats(googleId, startDate, endDate, type);
     }
+
+    /**
+     * 5. 取得分類選單 (包含預設與使用者自訂)
+     * 網址: GET /api/records/categories?googleId=...
+     */
+    @GetMapping("/categories")
+    public java.util.Map<String, java.util.Map<String, java.util.Set<String>>> getCategories(@RequestParam String googleId) {
+        return recordService.getCategoryOptions(googleId);
+    }
 }
