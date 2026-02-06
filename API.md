@@ -1,218 +1,332 @@
-Base URL: /api Host: (Localhost:8080 or deployed host)
+# Accounting API Documentation
 
-1. 會員 (Member)
-1.1 開發測試用登入
-快速建立或登入一個測試帳號。
+> **Base URL**: `/api`
+> **Format**: JSON
+> **Date Format**: `YYYY-MM-DD`
 
-Method: POST
-URL: /api/members/login
-Query Params:
-googleId (required): 模擬的 Google ID (如 user123)
-nickname (optional): 暱稱 (預設 "測試用戶")
-Response Example:
-{
-  "googleId": "user123",
-  "email": "test@gmail.com",
-  "nickname": "測試用戶",
-  "createdAt": "2023-10-27T10:00:00",
-  "lastRecordAt": null,
-  "shareStats": false,
-  "shareAccounts": false
-}
-1.2 Google 正式登入
-驗證 Google ID Token 並登入/註冊。
+---
 
-Method: POST
-URL: /api/members/google-login
-Request Body:
-{
-  "token": "eyJhbGciOiJSUzI1NiIs..."
-}
-Response: 同 1.1
-2. 帳戶 (Account)
-2.1 建立帳戶
-Method: POST
-URL: /api/accounts
-Query Params:
-googleId (required): 使用者 ID
-Request Body:
-{
-  "name": "玉山銀行",
-  "balance": 10000
-}
-Response Example:
-{
-  "id": 1,
-  "name": "玉山銀行",
-  "balance": 10000
-}
-2.2 查詢我的帳戶列表
-Method: GET
-URL: /api/accounts
-Query Params:
-googleId (required): 使用者 ID
-Response Example:
-[
-  { "id": 1, "name": "現金", "balance": 500 },
-  { "id": 2, "name": "銀行", "balance": 10000 }
-]
-3. 記帳 (Record)
-3.1 新增記帳
-Method: POST
-URL: /api/records
-Query Params:
-googleId (required): 使用者 ID
-accountId (required): 關聯的帳戶 ID (會扣款/入帳)
-Request Body:
-{
-  "type": "EXPENSE",       // 或 "INCOME"
-  "category": "食物",
-  "subCategory": "早餐",
-  "amount": 100.00,
-  "note": "好吃",
-  "date": "2023-10-27"
-}
-Response Example:
-{
-  "id": 5,
-  "type": "EXPENSE",
-  "amount": 100.00,
-  "date": "2023-10-27",
-  "account": { "id": 1, "name": "現金" }
-  // ... 其他欄位
-}
-3.2 查詢我的記帳紀錄
-Method: GET
-URL: /api/records
-Query Params:
-googleId (required)
-Response: List of Record objects.
-3.3 修改記帳
-Method: PUT
-URL: /api/records/{id}
-Query Params:
-googleId (required)
-Request Body: (同 3.1)
-3.4 刪除記帳
-Method: DELETE
-URL: /api/records/{id}
-Query Params:
-googleId (required)
-Response: String ("刪除成功！")
-3.5 查詢個人統計 (總收支)
-Method: GET
-URL: /api/records/stats
-Query Params:
-googleId (required)
-Response Example:
-{
-  "totalIncome": 50000.00,
-  "totalExpense": 20000.00,
-  "balance": 30000.00
-}
-3.6 查詢個人分類統計 (圓餅圖用)
-Method: GET
-URL: /api/records/stats/category
-Query Params:
-googleId (required)
-startDate (optional, YYYY-MM-DD)
-endDate (optional, YYYY-MM-DD)
-type (optional): EXPENSE 或 INCOME
-Response Example:
-[
-  { "category": "食物", "totalAmount": 5000 },
-  { "category": "交通", "totalAmount": 1200 }
-]
-4. 家庭 (Family)
-4.1 建立家庭
-Method: POST
-URL: /api/family/create
-Query Params:
-googleId (required): 建立者 ID
-name (required): 家庭名稱
-Response Example:
-{
-  "id": 1,
-  "name": "彭家記帳",
-  "inviteCode": "A1B2C3", // 自動生成
-  "host": { ... }
-}
-4.2 申請加入家庭
-Method: POST
-URL: /api/family/join
-Query Params:
-googleId (required): 申請人 ID
-code (required): 邀請碼
-Response: Family 物件 (若需要審核則可能稍後才會正式生效，依 Service 邏輯而定，目前 Controller 看起來是直接回傳 Family)。
-4.3 取得加入申請清單 (Host 專用)
-Method: GET
-URL: /api/family/join-requests
-Query Params:
-hostGoogleId (required)
-Response Example:
-[
-  {
-    "id": 1,
-    "applicant": { "nickname": "小明", ... },
-    "status": "PENDING",
-    "createdAt": "..."
-  }
-]
-4.4 審核加入申請 (Host 專用)
-Method: POST
-URL: /api/family/join/review
-Query Params:
-hostGoogleId (required)
-requestId (required): 申請單 ID
-approve (required): true (同意)/ ``false (拒絕)
-Response: String ("已同意加入申請" 或 "已拒絕加入申請")
-4.5 更新個人隱私設定
-Method: PUT
-URL: /api/family/settings
-Query Params:
-googleId (required)
-shareStats (boolean): 是否分享統計數據
-shareAccounts (boolean): 是否分享帳戶列表
-4.6 家庭總覽
-取得家庭成員列表，以及他們願意公開的資訊。
+## 1. Member (會員)
 
-Method: GET
-URL: /api/family/overview
-Query Params: googleId
-Response Example:
-[
-  {
-    "nickname": "爸爸",
-    "shareStats": true,
-    "shareAccounts": false,
-    "totalAssets": 1000000, // 因 shareStats=true 可見
-    "accounts": null       // 因 shareAccounts=false 不可見
-  },
-  {
-    "nickname": "媽媽",
-    "shareStats": true,
-    "shareAccounts": true,
-    "totalAssets": 500000,
-    "accounts": [ { "name": "私房錢", "balance": 500000 } ]
-  }
-]
-4.7 家庭流水帳
-Method: GET
-URL: /api/family/records
-Query Params: googleId
-Response: List of Records (所有家庭成員的記帳)。
-4.8 家庭分類統計
-Method: GET
-URL: /api/family/stats/category
-Query Params: googleId, startDate, endDate, type
-Response: List of CategoryStatsDto (全家人的加總)。
-4.9 查看特定家人的詳細資料
-僅在對方開啟隱私權限時有資料。
+### 1.1 測試登入 (Dev Login)
+快速建立或登入測試帳號。
 
-URL:
-/api/family/member/accounts: 對方的帳戶
-/api/family/member/records: 對方的記帳
-/api/family/member/stats: 對方的統計
-Query Params:
-googleId: 我的 ID
-targetGoogleId: 對方的 ID
+*   **URL**: `POST /members/login`
+*   **Query Params**:
+    *   `googleId`: `user123`
+    *   `nickname`: `測試小草`
+*   **Request Sample**: (None)
+*   **Response Sample**:
+    ```json
+    {
+      "googleId": "user123",
+      "email": "test@gmail.com",
+      "nickname": "測試小草",
+      "createdAt": "2026-02-04T10:00:00",
+      "lastRecordAt": null,
+      "shareStats": false,
+      "shareAccounts": false
+    }
+    ```
+
+### 1.2 Google 正式登入
+*   **URL**: `POST /members/google-login`
+*   **Request Sample**:
+    ```json
+    {
+      "token": "eyJhbGciOiJSUzI1NiIs..."
+    }
+    ```
+*   **Response Sample**:
+    ```json
+    {
+      "googleId": "10987654321",
+      "email": "realuser@gmail.com",
+      "nickname": "Real User",
+      "createdAt": "2026-02-04T12:00:00",
+      "shareStats": false,
+      "shareAccounts": false
+    }
+    ```
+
+---
+
+## 2. Accounts (帳戶)
+
+### 2.1 建立帳戶
+*   **URL**: `POST /accounts`
+*   **Query Params**: `googleId=user123`
+*   **Request Sample**:
+    ```json
+    {
+      "name": "玉山銀行",
+      "balance": 50000
+    }
+    ```
+*   **Response Sample**:
+    ```json
+    {
+      "id": 1,
+      "name": "玉山銀行",
+      "balance": 50000
+    }
+    ```
+
+### 2.2 查詢我的帳戶列表
+*   **URL**: `GET /accounts`
+*   **Query Params**: `googleId=user123`
+*   **Response Sample**:
+    ```json
+    [
+      {
+        "id": 1,
+        "name": "玉山銀行",
+        "balance": 50000
+      },
+      {
+        "id": 2,
+        "name": "錢包",
+        "balance": 1200
+      }
+    ]
+    ```
+
+---
+
+## 3. Records (記帳)
+
+### 3.1 新增記帳
+*   **URL**: `POST /records`
+*   **Query Params**:
+    *   `googleId`: `user123`
+    *   `accountId`: `1` (扣款/入帳的帳戶ID)
+*   **Request Sample**:
+    ```json
+    {
+      "type": "EXPENSE",
+      "category": "食",
+      "subCategory": "早餐",
+      "amount": 75,
+      "date": "2026-02-04",
+      "note": "蛋餅加紅茶"
+    }
+    ```
+*   **Response Sample**:
+    ```json
+    {
+      "id": 101,
+      "type": "EXPENSE",
+      "category": "食",
+      "subCategory": "早餐",
+      "amount": 75.00,
+      "date": "2026-02-04",
+      "note": "蛋餅加紅茶",
+      "account": { "id": 1, "name": "玉山銀行" }
+    }
+    ```
+
+### 3.2 查詢我的記帳紀錄
+*   **URL**: `GET /records`
+*   **Query Params**: `googleId=user123`
+*   **Response Sample**:
+    ```json
+    [
+      {
+        "id": 101,
+        "type": "EXPENSE",
+        "category": "食",
+        "subCategory": "早餐",
+        "amount": 75.00,
+        "date": "2026-02-04",
+        "account": { "id": 1, "name": "玉山銀行" }
+      },
+      {
+        "id": 100,
+        "type": "INCOME",
+        "category": "工作",
+        "subCategory": "薪水",
+        "amount": 50000.00,
+        "date": "2026-02-01",
+        "account": { "id": 1, "name": "玉山銀行" }
+      }
+    ]
+    ```
+
+### 3.3 刪除記帳
+*   **URL**: `DELETE /records/{id}`
+*   **Query Params**: `googleId=user123`
+*   **Response Sample**:
+    ```plaintext
+    刪除成功！
+    ```
+
+### 3.4 修改記帳
+*   **URL**: `PUT /records/{id}`
+*   **Query Params**: `googleId=user123`
+*   **Request Sample**: (同 3.1 新增記帳)
+*   **Response Sample**: (同 3.1 回傳更新後的物件)
+
+### 3.5 取得個人總收支統計
+*   **URL**: `GET /records/stats`
+*   **Query Params**: `googleId=user123`
+*   **Response Sample**:
+    ```json
+    {
+      "totalIncome": 50000.00,
+      "totalExpense": 75.00,
+      "balance": 49925.00
+    }
+    ```
+
+### 3.6 取得個人分類統計 (圓餅圖資料)
+*   **URL**: `GET /records/stats/category`
+*   **Query Params**:
+    *   `googleId`: `user123`
+    *   `type`: `EXPENSE` (or `INCOME`)
+    *   `startDate`: `2026-02-01` (Optional)
+    *   `endDate`: `2026-02-28` (Optional)
+*   **Response Sample**:
+    ```json
+    [
+      { "category": "食", "totalAmount": 4500.00 },
+      { "category": "行", "totalAmount": 1200.00 },
+      { "category": "住", "totalAmount": 15000.00 }
+    ]
+    ```
+
+### 3.7 取得分類選單 (動態結構)
+回傳預設分類加上使用者歷史自訂的子分類。
+*   **URL**: `GET /records/categories`
+*   **Query Params**: `googleId=user123`
+*   **Response Sample**:
+    ```json
+    {
+      "EXPENSE": {
+        "食": ["早餐", "午餐", "晚餐", "飲料", "自訂消夜"],
+        "衣": ["衣服", "褲子", "鞋子"],
+        "住": ["房租", "水費", "電費"],
+        "行": ["捷運", "公車", "加油"],
+        "醫療": ["掛號費", "藥品"],
+        "其他": ["雜支"]
+      },
+      "INCOME": {
+        "工作": ["薪水", "獎金"],
+        "金融投資": ["股息"]
+      }
+    }
+    ```
+
+---
+
+## 4. Family (家庭)
+
+### 4.1 建立家庭
+*   **URL**: `POST /family/create`
+*   **Query Params**:
+    *   `googleId`: `user123`
+    *   `name`: `幸福一家`
+*   **Response Sample**:
+    ```json
+    {
+      "id": 1,
+      "name": "幸福一家",
+      "inviteCode": "A1B2C3",
+      "host": { "googleId": "user123", "nickname": "測試小草" }
+    }
+    ```
+
+### 4.2 加入家庭
+*   **URL**: `POST /family/join`
+*   **Query Params**:
+    *   `googleId`: `user456`
+    *   `code`: `A1B2C3`
+*   **Response Sample**:
+    ```json
+    {
+      "id": 1,
+      "name": "幸福一家",
+      "inviteCode": "A1B2C3"
+    }
+    ```
+
+### 4.3 家庭總覽 (成員與資產)
+根據成員的隱私設定，`totalAssets` 和 `accounts` 可能為 null。
+*   **URL**: `GET /family/overview`
+*   **Query Params**: `googleId=user123`
+*   **Response Sample**:
+    ```json
+    [
+      {
+        "nickname": "爸爸",
+        "shareStats": true,
+        "shareAccounts": false,
+        "totalAssets": 150000.00,
+        "accounts": null
+      },
+      {
+        "nickname": "媽媽",
+        "shareStats": true,
+        "shareAccounts": true,
+        "totalAssets": 200000.00,
+        "accounts": [
+            { "id": 5, "name": "私房錢", "balance": 200000.00 }
+        ]
+      },
+      {
+        "nickname": "小明",
+        "shareStats": false,
+        "shareAccounts": false,
+        "totalAssets": null,
+        "accounts": null
+      }
+    ]
+    ```
+
+### 4.4 更新個人隱私設定
+*   **URL**: `PUT /family/settings`
+*   **Query Params**:
+    *   `googleId`: `user123`
+    *   `shareStats`: `true`
+    *   `shareAccounts`: `false`
+*   **Response Sample**:
+    ```plaintext
+    設定已更新
+    ```
+
+### 4.5 查詢加入申請 (Host Only)
+*   **URL**: `GET /family/join-requests`
+*   **Query Params**: `hostGoogleId=user123`
+*   **Response Sample**:
+    ```json
+    [
+      {
+        "id": 10,
+        "applicant": { "nickname": "想加入的陌生人" },
+        "status": "PENDING",
+        "createdAt": "2026-02-04T15:30:00"
+      }
+    ]
+    ```
+
+### 4.6 審核加入申請 (Host Only)
+*   **URL**: `POST /family/join/review`
+*   **Query Params**:
+    *   `hostGoogleId`: `user123`
+    *   `requestId`: `10`
+    *   `approve`: `true`
+*   **Response Sample**:
+    ```plaintext
+    已同意加入申請
+    ```
+
+### 4.7 查詢全家流水帳 (公開紀錄)
+*   **URL**: `GET /family/records`
+*   **Query Params**: `googleId=user123`
+*   **Response Sample**: (List of Records, 同 3.2)
+
+### 4.8 查詢全家支出分類統計
+*   **URL**: `GET /family/stats/category`
+*   **Query Params**:
+    *   `googleId`: `user123`
+    *   `type`: `EXPENSE`
+*   **Response Sample**: (List of CategoryStatsDto, 同 3.6)

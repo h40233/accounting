@@ -62,12 +62,12 @@ const app = {
 
         const catSelect = document.getElementById('record-category-select');
         const subSelect = document.getElementById('record-sub-select');
-        const subInput = document.getElementById('record-sub-input');
+        const subWrapper = document.getElementById('record-sub-custom-wrapper');
         
         // 重置
         catSelect.innerHTML = '<option value="">請選擇主分類</option>';
         subSelect.innerHTML = '<option value="">請先選擇主分類</option>';
-        subInput.style.display = 'none';
+        subWrapper.style.display = 'none';
         subSelect.style.display = 'block';
 
         // 根據目前的 recordType (EXPENSE / INCOME) 填入選項
@@ -85,11 +85,12 @@ const app = {
     onCategoryChange: function() {
         const catSelect = document.getElementById('record-category-select');
         const subSelect = document.getElementById('record-sub-select');
+        const subWrapper = document.getElementById('record-sub-custom-wrapper');
         const subInput = document.getElementById('record-sub-input');
         
         const selectedCat = catSelect.value;
         subSelect.innerHTML = '<option value="">請選擇子分類</option>';
-        subInput.style.display = 'none';
+        subWrapper.style.display = 'none';
         subSelect.style.display = 'block';
         subInput.value = ''; // 清空手動輸入
 
@@ -115,13 +116,25 @@ const app = {
 
     onSubCategoryChange: function() {
         const subSelect = document.getElementById('record-sub-select');
+        const subWrapper = document.getElementById('record-sub-custom-wrapper');
         const subInput = document.getElementById('record-sub-input');
 
         if (subSelect.value === 'CUSTOM_NEW') {
             subSelect.style.display = 'none';
-            subInput.style.display = 'block';
+            subWrapper.style.display = 'flex'; // Change to flex to align input and button
             subInput.focus();
         }
+    },
+
+    cancelCustomSub: function() {
+        const subSelect = document.getElementById('record-sub-select');
+        const subWrapper = document.getElementById('record-sub-custom-wrapper');
+        const subInput = document.getElementById('record-sub-input');
+
+        subWrapper.style.display = 'none';
+        subSelect.style.display = 'block';
+        subSelect.value = ""; // Reset select
+        subInput.value = ""; // Clear input
     },
 
     // ... (rest of the file)
@@ -410,11 +423,11 @@ const app = {
             });
 
             // Update privacy settings checkboxes
-            // We need to know current user's settings. 
-            // The overview returns a list. Find 'me'.
-            // Actually API doesn't easily identify 'me' in the list without comparing nicknames or IDs (which aren't in DTO).
-            // A simplified way: just fetch user info again if needed, or rely on stored user state if we had it.
-            // For now, let's just leave checkboxes as is or skip pre-filling them correctly to save complexity in this MVP.
+            // ✨ 根據目前使用者的設定，回填 Checkbox
+            if (this.user) {
+                document.getElementById('setting-share-stats').checked = this.user.shareStats || false;
+                document.getElementById('setting-share-accounts').checked = this.user.shareAccounts || false;
+            }
             
             // Load Family Stats (Category)
             this.loadFamilyStats();
@@ -458,10 +471,29 @@ const app = {
         const shareStats = document.getElementById('setting-share-stats').checked;
         const shareAccounts = document.getElementById('setting-share-accounts').checked;
 
-        await fetch(`/api/family/settings?googleId=${this.user.googleId}&shareStats=${shareStats}&shareAccounts=${shareAccounts}`, {
-            method: 'PUT'
-        });
-        // alert('設定已更新');
+        try {
+            const res = await fetch(`/api/family/settings?googleId=${this.user.googleId}&shareStats=${shareStats}&shareAccounts=${shareAccounts}`, {
+                method: 'PUT'
+            });
+            
+            if (res.ok) {
+                // ✨ 同步更新本地狀態
+                this.user.shareStats = shareStats;
+                this.user.shareAccounts = shareAccounts;
+                localStorage.setItem('acc_user', JSON.stringify(this.user));
+                
+                // 這裡可以做個簡單的提示，例如按鈕變色或 console
+                console.log('隱私設定已更新並儲存');
+            } else {
+                alert('隱私設定更新失敗');
+                // 失敗時回復 checkbox 狀態 (選用)
+                document.getElementById('setting-share-stats').checked = !shareStats; 
+                document.getElementById('setting-share-accounts').checked = !shareAccounts;
+            }
+        } catch (e) {
+            console.error(e);
+            alert('連線錯誤，無法更新設定');
+        }
     },
 
     loadFamilyStats: async function() {

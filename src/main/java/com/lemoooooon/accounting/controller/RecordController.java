@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.lemoooooon.accounting.dto.CategoryStatsDto;
 import com.lemoooooon.accounting.dto.StatsDto;
 import com.lemoooooon.accounting.model.Record;
-import com.lemoooooon.accounting.repository.RecordRepository;
 import com.lemoooooon.accounting.service.RecordService;
 
 import lombok.RequiredArgsConstructor;
@@ -27,7 +26,6 @@ import lombok.RequiredArgsConstructor;
 public class RecordController {
 
     private final RecordService recordService;
-    private final RecordRepository recordRepository;
 
     /**
      * 1. 新增記帳
