@@ -1,6 +1,8 @@
 package com.lemoooooon.accounting.model;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
@@ -39,8 +41,14 @@ public class Member {
     @Column(updatable = false)
     private LocalDateTime createdAt;
     
-    // 上次成功記帳的時間
-    private LocalDateTime lastRecordAt;
+    // 上次記帳日期 (用於每日提醒)
+    private LocalDate lastRecordDate;
+    
+    // 每日提醒時間 (預設晚上 20:00)
+    private LocalTime reminderTime = LocalTime.of(20, 0);
+    
+    // 是否開啟提醒
+    private boolean enableReminder = true;
 
     // 新增這段：一個 Member 有多個 Account
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL)

@@ -96,7 +96,7 @@ public class FamilyService {
         request.setCreatedAt(LocalDateTime.now());
         joinRequestRepository.save(request);
 
-        // 回傳家庭基本資訊 (前端可用來顯示「已送出申請給 XXX 家庭」)
+        // 回傳家庭基本資訊 (前端可用來顯示「已送出申請給 某某某家庭」)
         return family;
     }
 

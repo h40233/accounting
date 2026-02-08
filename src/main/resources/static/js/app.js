@@ -12,11 +12,65 @@ const app = {
             this.user = JSON.parse(storedUser);
             this.showMainApp();
             this.loadCategories(); // ✨ 登入後預先載入分類
+        } else {
+            // Only init Google login if not logged in
+            this.initGoogleLogin();
         }
 
         // Set default date for record
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('record-date').value = today;
+    },
+
+    initGoogleLogin: async function() {
+        // Wait for Google Script to load
+        if (typeof google === 'undefined' || !google.accounts) {
+            setTimeout(() => this.initGoogleLogin(), 500);
+            return;
+        }
+
+        try {
+            // ✨ 改為從後端取得 Client ID，不寫死在前端
+            const res = await fetch('/api/members/google-client-id');
+            if (!res.ok) throw new Error("無法取得 Google Client ID");
+            const data = await res.json();
+            const clientId = data.clientId;
+
+            google.accounts.id.initialize({
+                client_id: clientId,
+                callback: this.handleGoogleLogin.bind(this)
+            });
+            
+            google.accounts.id.renderButton(
+                document.getElementById("google-btn"),
+                { theme: "outline", size: "large", width: 250 }  // customization attributes
+            );
+        } catch (e) {
+            console.error("Google Login Init Error:", e);
+        }
+    },
+
+    handleGoogleLogin: async function(response) {
+        console.log("Google Token:", response.credential);
+        try {
+            const res = await fetch('/api/members/google-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: response.credential })
+            });
+
+            if (res.ok) {
+                this.user = await res.json();
+                localStorage.setItem('acc_user', JSON.stringify(this.user));
+                this.showMainApp();
+                this.loadCategories();
+            } else {
+                alert('Google 登入失敗，請檢查後端驗證設定');
+            }
+        } catch (error) {
+            console.error('Google Login error:', error);
+            alert('連線錯誤');
+        }
     },
 
     login: async function() {
@@ -161,8 +215,9 @@ const app = {
         
         // Find the tab element roughly by text or index (simplification for this example)
         // Better: add ID or data attribute to tabs. For now, matching by clicking logic in HTML.
-        const tabIndex = ['dashboard', 'accounts', 'records', 'family'].indexOf(tabName);
-        document.querySelectorAll('.tab')[tabIndex].classList.add('active');
+        const tabNames = ['dashboard', 'accounts', 'records', 'family', 'settings'];
+        const tabIndex = tabNames.indexOf(tabName);
+        if(tabIndex >= 0) document.querySelectorAll('.tab')[tabIndex].classList.add('active');
         
         document.getElementById(`tab-${tabName}`).classList.remove('hidden');
 
@@ -171,6 +226,50 @@ const app = {
         if (tabName === 'accounts') this.loadAccounts();
         if (tabName === 'records') this.loadRecords();
         if (tabName === 'family') this.loadFamily();
+        if (tabName === 'settings') this.loadSettings();
+    },
+
+    // --- Settings ---
+    loadSettings: function() {
+        if (!this.user) return;
+        
+        // 預設值
+        const time = this.user.reminderTime || "20:00"; // LocalTime string usually HH:mm:ss, but input type=time needs HH:mm
+        // Handle "HH:mm:ss" from backend
+        const formattedTime = time.length > 5 ? time.substring(0, 5) : time;
+        
+        document.getElementById('setting-reminder-time').value = formattedTime;
+        document.getElementById('setting-reminder-enable').checked = this.user.enableReminder !== false; // Default true if undefined
+
+        // Privacy Settings (Moved from Family tab)
+        document.getElementById('setting-share-stats').checked = this.user.shareStats || false;
+        document.getElementById('setting-share-accounts').checked = this.user.shareAccounts || false;
+    },
+
+    saveReminderSettings: async function() {
+        const time = document.getElementById('setting-reminder-time').value;
+        const enable = document.getElementById('setting-reminder-enable').checked;
+
+        if (!time) return alert('請選擇時間');
+
+        try {
+            const res = await fetch(`/api/members/settings/reminder?googleId=${this.user.googleId}&time=${time}&enable=${enable}`, {
+                method: 'PUT'
+            });
+
+            if (res.ok) {
+                alert('設定已儲存');
+                // Update local user object
+                this.user.reminderTime = time;
+                this.user.enableReminder = enable;
+                localStorage.setItem('acc_user', JSON.stringify(this.user));
+            } else {
+                alert('儲存失敗');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('連線錯誤');
+        }
     },
 
     // --- Dashboard ---
@@ -422,13 +521,6 @@ const app = {
                 list.appendChild(card);
             });
 
-            // Update privacy settings checkboxes
-            // ✨ 根據目前使用者的設定，回填 Checkbox
-            if (this.user) {
-                document.getElementById('setting-share-stats').checked = this.user.shareStats || false;
-                document.getElementById('setting-share-accounts').checked = this.user.shareAccounts || false;
-            }
-            
             // Load Family Stats (Category)
             this.loadFamilyStats();
             

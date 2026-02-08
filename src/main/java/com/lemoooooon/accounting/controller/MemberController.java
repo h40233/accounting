@@ -1,7 +1,10 @@
 package com.lemoooooon.accounting.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -18,14 +21,38 @@ import java.util.Map;
 @RequestMapping("/api/members") // 2. 設定此控制器的「根網址」
 public class MemberController {
 
-    @Autowired
-    private MemberService memberService;
+    @Value("${google.client.id}")
+    private String googleClientId;
 
-    // 定義一個內部類別來接收 JSON 資料 (這叫做 DTO - Data Transfer Object)
+    @Autowired
+    private MemberService memberService; 
+
+    @Autowired
+    private GoogleAuthService googleAuthService; 
+
+    /**
+     * 更新提醒設定
+     */
+    @PutMapping("/settings/reminder")
+    public void updateReminderSettings(
+            @RequestParam String googleId,
+            @RequestParam String time, // Format: HH:mm
+            @RequestParam boolean enable) {
+        memberService.updateReminderSettings(googleId, time, enable);
+    }
+
     // 因為前端傳來的 JSON 長得像 {"googleId": "...", "nickname": "..."}
     public static class LoginRequest {
         public String googleId;
         public String nickname;
+    }
+
+    /**
+     * 取得 Google Client ID (避免寫死在前端)
+     */
+    @GetMapping("/google-client-id")
+    public Map<String, String> getGoogleClientId() {
+        return Map.of("clientId", googleClientId);
     }
 
     /**
@@ -45,8 +72,6 @@ public class MemberController {
         return memberService.login(googleId, nameToUse, "test@gmail.com");
     }
 
-    @Autowired
-    private GoogleAuthService googleAuthService; // 記得匯入你剛寫好的 Service
     /**
      * 正式 Google 登入
      * 前端只要傳: { "token": "eyJhbGciOi..." }

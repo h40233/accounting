@@ -50,3 +50,5 @@
     *   `app.html`: 主應用程式頁面。
     *   `css/style.css`: 青青草原風格樣式表。
     *   `js/app.js`: 前端邏輯 (API 串接、UI 互動)。
+
+資料庫使用Neon，後端使用Render部屬

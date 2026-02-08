@@ -29,6 +29,9 @@ public class RecordService {
 
     @Autowired
     private AccountRepository accountRepository;
+    
+    @Autowired
+    private com.lemoooooon.accounting.repository.MemberRepository memberRepository;
 
     // ... (中間的方法如 createRecord, deleteRecord 等保持不變，略過以節省 tokens) ...
 
@@ -46,6 +49,14 @@ public class RecordService {
             account.setBalance(account.getBalance().subtract(record.getAmount()));
         }
         accountRepository.save(account);
+        
+        // ✨ 更新 Member 的最後記帳日期
+        if (record.getDate().equals(LocalDate.now())) {
+            com.lemoooooon.accounting.model.Member member = account.getMember();
+            member.setLastRecordDate(LocalDate.now());
+            memberRepository.save(member);
+        }
+        
         return recordRepository.save(record);
     }
 

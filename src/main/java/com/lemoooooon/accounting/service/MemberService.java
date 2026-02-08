@@ -68,4 +68,12 @@ public class MemberService {
         return memberRepository.findById(googleId)
                 .orElseThrow(() -> new RuntimeException("找不到使用者 ID: " + googleId));
     }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void updateReminderSettings(String googleId, String time, boolean enable) {
+        Member member = getMember(googleId);
+        member.setReminderTime(java.time.LocalTime.parse(time)); // Format: HH:mm
+        member.setEnableReminder(enable);
+        memberRepository.save(member);
+    }
 }
