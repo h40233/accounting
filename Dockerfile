@@ -1,22 +1,18 @@
-# 1. 使用 Java 17 (OpenJDK) 作為基底環境
-FROM eclipse-temurin:17-jdk-jammy
+# 1. 改用官方 Maven 映像檔 (裡面已經裝好 Maven 了，不需要 mvnw)
+FROM maven:3.9.6-eclipse-temurin-17
 
 # 2. 設定工作目錄
 WORKDIR /app
 
-# 3. 把您的專案檔案全部複製進去
+# 3. 複製所有檔案
 COPY . .
 
-# 4. 給 Maven Wrapper 執行權限 (這一步在 Linux 環境非常重要！)
-RUN chmod +x mvnw
+# 4. 直接用 'mvn' 指令打包 (注意：這裡不用 ./mvnw 了)
+RUN mvn clean package -DskipTests
 
-# 5. 開始打包 (跳過測試以節省時間)
-RUN ./mvnw clean package -DskipTests
-
-# 6. 設定環境變數 (Render 會自動注入 PORT，這裡設個預設值)
+# 5. 設定 Port
 ENV PORT=8080
 
-# 7. 告訴 Render 啟動時要執行什麼指令
-# 注意：這裡的 jar 檔名必須跟您 target 資料夾裡的一樣
-# 通常 Maven 預設是 [artifactId]-[version].jar
+# 6. 啟動指令 (請確認您的 jar 檔名是否包含版本號)
+# 如果您的 pom.xml 版本是 0.0.1-SNAPSHOT，那這行就是對的
 CMD ["java", "-jar", "target/accounting-0.0.1-SNAPSHOT.jar"]
