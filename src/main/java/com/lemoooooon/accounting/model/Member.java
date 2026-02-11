@@ -38,6 +38,8 @@ public class Member {
     @Column(nullable = false)
     private String nickname;
 
+    private String avatarUrl;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
     

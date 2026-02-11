@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.lemoooooon.accounting.dto.CategoryStatsDto;
+import com.lemoooooon.accounting.dto.FamilyDetailDto;
 import com.lemoooooon.accounting.dto.FamilyMemberDto;
 import com.lemoooooon.accounting.dto.StatsDto;
 import com.lemoooooon.accounting.model.FacilyJoinRequest;
@@ -81,6 +82,14 @@ public class FamilyController {
             dtos.add(dto);
         }
         return dtos;
+    }
+
+    /**
+     * 查詢當前家庭的詳細資訊 (包含家長和邀請碼)
+     */
+    @GetMapping("/details")
+    public FamilyDetailDto getFamilyDetails(@RequestParam String googleId) {
+        return familyService.getFamilyDetails(googleId);
     }
 
     // 簡單版：只列出家庭成員 (任何家庭成員都可呼叫)

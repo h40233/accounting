@@ -43,7 +43,57 @@
       "googleId": "10987654321",
       "email": "realuser@gmail.com",
       "nickname": "Real User",
+      "avatarUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ...=s96-c",
       "createdAt": "2026-02-04T12:00:00",
+      "shareStats": false,
+      "shareAccounts": false
+    }
+    ```
+
+### 1.3 更新暱稱
+*   **URL**: `PUT /members/nickname`
+*   **Query Params**:
+    *   `googleId`: `user123`
+*   **Request Sample**:
+    ```json
+    {
+      "nickname": "新的名字"
+    }
+    ```
+*   **Response Sample**: (回傳更新後的 Member 物件)
+    ```json
+    {
+      "googleId": "user123",
+      "email": "test@gmail.com",
+      "nickname": "新的名字",
+      "avatarUrl": null,
+      "createdAt": "2026-02-04T10:00:00",
+      "lastRecordAt": null,
+      "shareStats": false,
+      "shareAccounts": false
+    }
+    ```
+
+### 1.4 更新頭像
+使用者需先將圖片上傳至圖床 (如 Cloudinary)，再將取得的圖片 URL 傳給此 API。
+*   **URL**: `PUT /members/avatar`
+*   **Query Params**:
+    *   `googleId`: `user123`
+*   **Request Sample**:
+    ```json
+    {
+      "avatarUrl": "https://my-image-host.com/new-avatar.jpg"
+    }
+    ```
+*   **Response Sample**: (回傳更新後的 Member 物件)
+    ```json
+    {
+      "googleId": "user123",
+      "email": "test@gmail.com",
+      "nickname": "新的名字",
+      "avatarUrl": "https://my-image-host.com/new-avatar.jpg",
+      "createdAt": "2026-02-04T10:00:00",
+      "lastRecordAt": null,
       "shareStats": false,
       "shareAccounts": false
     }
@@ -249,7 +299,24 @@
     }
     ```
 
-### 4.3 家庭總覽 (成員與資產)
+### 4.3 查詢家庭資訊
+任何家庭成員都可以呼叫，用來查詢家庭的家長 (Host) 與邀請碼。
+*   **URL**: `GET /family/details`
+*   **Query Params**: `googleId=user123`
+*   **Response Sample**:
+    ```json
+    {
+      "id": 1,
+      "name": "幸福一家",
+      "inviteCode": "A1B2C3",
+      "host": {
+        "nickname": "家長的名字",
+        "avatarUrl": "https://.../host_avatar.jpg"
+      }
+    }
+    ```
+
+### 4.4 家庭總覽 (成員與資產)
 根據成員的隱私設定，`totalAssets` 和 `accounts` 可能為 null。
 *   **URL**: `GET /family/overview`
 *   **Query Params**: `googleId=user123`
@@ -282,7 +349,7 @@
     ]
     ```
 
-### 4.4 更新個人隱私設定
+### 4.5 更新個人隱私設定
 *   **URL**: `PUT /family/settings`
 *   **Query Params**:
     *   `googleId`: `user123`
@@ -293,7 +360,7 @@
     設定已更新
     ```
 
-### 4.5 查詢加入申請 (Host Only)
+### 4.6 查詢加入申請 (Host Only)
 *   **URL**: `GET /family/join-requests`
 *   **Query Params**: `hostGoogleId=user123`
 *   **Response Sample**:
@@ -308,7 +375,7 @@
     ]
     ```
 
-### 4.6 審核加入申請 (Host Only)
+### 4.7 審核加入申請 (Host Only)
 *   **URL**: `POST /family/join/review`
 *   **Query Params**:
     *   `hostGoogleId`: `user123`
@@ -319,12 +386,12 @@
     已同意加入申請
     ```
 
-### 4.7 查詢全家流水帳 (公開紀錄)
+### 4.8 查詢全家流水帳 (公開紀錄)
 *   **URL**: `GET /family/records`
 *   **Query Params**: `googleId=user123`
 *   **Response Sample**: (List of Records, 同 3.2)
 
-### 4.8 查詢全家支出分類統計
+### 4.9 查詢全家支出分類統計
 *   **URL**: `GET /family/stats/category`
 *   **Query Params**:
     *   `googleId`: `user123`

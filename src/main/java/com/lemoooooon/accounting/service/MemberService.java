@@ -22,16 +22,15 @@ public class MemberService {
     /**
      * 處理登入邏輯：
      * 1. 如果會員不存在 -> 註冊新會員
-     * 2. 如果會員存在 -> 更新最後登入時間 (非記帳時間)
+     * 2. 如果會員存在 -> 直接回傳
      */
-    public Member login(String googleId, String googleName, String email) {
+    public Member login(String googleId, String googleName, String email, String avatarUrl) {
         // 嘗試去倉庫找人
         Optional<Member> existingMember = memberRepository.findById(googleId);
 
         if (existingMember.isPresent()) {
             // 找到了！是老客戶
-            Member member = existingMember.get();
-            return member;
+            return existingMember.get();
         } else {
             // 找不到！是新客戶，幫他註冊
             Member newMember = new Member();
@@ -40,6 +39,7 @@ public class MemberService {
             // 如果 googleName 是空的 (例如某些隱私設定)，就給個 "新用戶"
             newMember.setNickname(googleName != null && !googleName.isEmpty() ? googleName : "新用戶");
             newMember.setEmail(email);
+            newMember.setAvatarUrl(avatarUrl); // 設定頭像 URL
             newMember.setCreatedAt(LocalDateTime.now());
 
             // ✨✨✨ 關鍵修改：幫新用戶建立預設帳戶 ✨✨✨
@@ -61,6 +61,20 @@ public class MemberService {
             // 所以存 Member 的時候，Hibernate 會順便幫我們把 Account 也存進去！
             return memberRepository.save(newMember);
         }
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Member updateNickname(String googleId, String newNickname) {
+        Member member = getMember(googleId);
+        member.setNickname(newNickname);
+        return memberRepository.save(member);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Member updateAvatarUrl(String googleId, String avatarUrl) {
+        Member member = getMember(googleId);
+        member.setAvatarUrl(avatarUrl);
+        return memberRepository.save(member);
     }
     
     // 透過 ID 找人的輔助方法

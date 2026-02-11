@@ -1,8 +1,26 @@
-# Database Configuration
-spring.datasource.url=jdbc:mysql://localhost:3306/wallet_db
-spring.datasource.username=root
-spring.datasource.password=你的資料庫密碼
+spring.application.name=accounting
 
-# Google OAuth Configuration
-google.client.id=你的-Google-Client-ID.apps.googleusercontent.com
-google.client.secret=你的-Google-Client-Secret
+# 資料庫連線設定
+# spring.datasource.url=jdbc:mysql://localhost:3306/wallet_db
+# spring.datasource.username=root
+# spring.datasource.password=your_password
+
+
+spring.datasource.url=jdbc:postgresql://your_URL
+spring.datasource.username=neondb_owner
+spring.datasource.password=your_password
+
+# JPA 設定
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+
+# Google OAuth 設定
+google.client.id=your_client_id.apps.googleusercontent.com
+google.client.secret=your_client_secret
+
+# port設定
+server.port=${PORT:8080}
+server.servlet.encoding.charset=UTF-8
+server.servlet.encoding.force=true
+

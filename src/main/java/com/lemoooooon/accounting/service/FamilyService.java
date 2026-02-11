@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.lemoooooon.accounting.dto.CategoryStatsDto;
+import com.lemoooooon.accounting.dto.FamilyDetailDto;
 import com.lemoooooon.accounting.dto.StatsDto;
 import com.lemoooooon.accounting.model.Account;
 import com.lemoooooon.accounting.model.FacilyJoinRequest;
@@ -209,6 +210,19 @@ public class FamilyService {
         }
         // 直接回傳 family.members，前端只要顯示 nickname 即可
         return family.getMembers();
+    }
+
+    /**
+     * 查詢當前家庭的詳細資訊 (包含家長和邀請碼)
+     */
+    public FamilyDetailDto getFamilyDetails(String googleId) {
+        Member member = memberRepository.findById(googleId)
+                .orElseThrow(() -> new RuntimeException("找不到使用者"));
+        Family family = member.getFamily();
+        if (family == null) {
+            throw new RuntimeException("你還沒加入家庭");
+        }
+        return FamilyDetailDto.fromEntity(family);
     }
 
     private void ensureSameFamily(String viewerGoogleId, String targetGoogleId) {
