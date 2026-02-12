@@ -141,6 +141,29 @@
     ]
     ```
 
+### 2.3 刪除帳戶
+實作混合刪除策略：
+1.  若帳戶下無任何記帳紀錄，則直接刪除。
+2.  若帳戶下尚有關聯紀錄，則會回傳 `409 Conflict` 錯誤，前端需提示使用者。
+3.  若使用者執意要刪除，需在請求中加上 `force=true` 參數，後端會對此帳戶進行「軟刪除」。
+
+*   **URL**: `DELETE /accounts/{id}`
+*   **Query Params**:
+    *   `googleId`: `user123` (必須)
+    *   `force`: `true` (可選, 預設 `false`)
+*   **Success Response (204 No Content)**:
+    ```
+    (No content, just HTTP status 204)
+    ```
+*   **Conflict Response (409 Conflict)**:
+    當帳戶尚有關聯紀錄且未使用 `force=true` 時回傳。
+    ```json
+    {
+      "error": "HAS_RECORDS",
+      "message": "此帳戶尚有關聯紀錄，請確認是否強制刪除"
+    }
+    ```
+
 ---
 
 ## 3. Records (記帳)

@@ -16,6 +16,8 @@ public interface RecordRepository extends JpaRepository<Record, Long> {
 
     List<Record> findByAccountMemberGoogleId(String googleId);
     
+    boolean existsByAccountId(Long accountId);
+
     // 也可以加一個：查詢某段時間內的紀錄
     // 自動生成 SQL: SELECT * FROM records WHERE member_id = ? AND date BETWEEN ? AND ?
     List<Record> findByAccountMemberGoogleIdAndDateBetween(String googleId, java.time.LocalDate startDate, java.time.LocalDate endDate);
